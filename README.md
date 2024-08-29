@@ -253,3 +253,84 @@ UserMapper.java
 </mapper>
 ```
 
+## 1.7 条件查询
+
+我们之前实现了通过建立映射关系来调用sql语句进行查询数据，但是我们要条件查询一条数据该怎么做？我该如何进行参数拼接达到条件查询？
+
+我们可以在UserMapper.xml下写一个查询来进行条件查询
+
+UserMapper.xml
+
+```xml
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.xumob.mapper.UserMapper">
+    <resultMap id="userResultMap" type="User">
+        <id column="id" property="id" />
+        <result column="user_name" property="username" />
+        <result column="password" property="passWord" />
+    </resultMap>
+    
+    <select id="listUser" resultMap="userResultMap">
+        SELECT * FROM user
+    </select>
+    
+    <!-- 定义一个getUser查询 -->
+    <!-- 通过使用参数占位符来设定指定的参数值，来进行条件查询 -->
+    <select id="getUser" resultMap="userResultMap">
+        SELECT * FROM user
+        <where>
+            AND username LIKE #{username}
+        </where>
+    </select>
+</mapper>
+```
+
+我们现在就需要去Mapper接口定义一个指定的抽象方法来进行条件查询。
+
+UserMapper.java
+
+```java
+package cn.xumob.mapper;
+
+import cn.xumob.entity.User;
+
+import java.util.List;
+
+public interface UserMapper {
+
+    List<User> listUser();
+        
+    User getUser(String username);
+
+}
+
+```
+
+现在我们就成功的定义了一个条件查询，我们创建一个单元测试来测试这个条件查询
+
+TestUser.java
+
+```java
+public class TestUser {
+    @Test
+    public void getUserById() {
+        String resource = "mybatis-config.xml";
+        InputStream inputStream = Resources.getResourceAsStream(resource);
+        SqlSessionFactory build = new SqlSessionFactoryBuilder().build(inputStream);
+
+        SqlSession sqlSession = build.openSession();
+
+        UserMapper mapper = sqlSession.getMapper(UserMapper.class);
+
+        User user = mapper.getUser();
+
+        System.out.println(user);
+
+        sqlSession.close();
+    }
+}
+```
+
