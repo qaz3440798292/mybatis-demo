@@ -1,11 +1,10 @@
 package cn.xumob.mapper;
 
 import cn.xumob.entity.User;
-
-import java.util.List;
+import org.apache.ibatis.annotations.Param;
 
 public interface UserMapper {
 
-    List<User> selectUser();
+    User selectUser(@Param("id") int id);
 
 }

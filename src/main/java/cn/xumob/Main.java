@@ -10,7 +10,6 @@ import org.apache.ibatis.session.SqlSessionFactoryBuilder;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.List;
 
 public class Main {
 
@@ -19,13 +18,13 @@ public class Main {
         InputStream inputStream = Resources.getResourceAsStream(resource);
         SqlSessionFactory build = new SqlSessionFactoryBuilder().build(inputStream);
 
-        SqlSession sqlSession = build.openSession();
+        SqlSession sqlSession = build.openSession(true);
 
         UserMapper mapper = sqlSession.getMapper(UserMapper.class);
 
-        List<User> users = mapper.selectUser();
+        User user = mapper.selectUser(1);
 
-        users.forEach(System.out::println);
+        System.out.println(user);
 
         sqlSession.close();
     }
