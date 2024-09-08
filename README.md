@@ -224,6 +224,8 @@ mybatis中有两个参数占位符，一个是 #{}，还有一个是 ${}
 
 ## 1.6 结果映射
 
+### 1.6.1 建立结果映射关系
+
 当我们建立好mapper之间的关系后，是可以正常查询所有结果了，但是有没有想过一个问题，就是当数据表中的列名与pojo类中的属性名不相同时，该如何处理呢?
 
 mybatis为了用户们不会出现这样的问题，创造了结果映射 (Result Map)。
@@ -251,6 +253,89 @@ UserMapper.java
         SELECT * FROM user
     </select>
 </mapper>
+```
+
+### 1.6.2 多对一结果映射
+
+那有没有想过，当我们一个表的一行数据根某个用户有关系的时候，我们该怎么做呢？
+
+是不是想过多对一查询？
+
+我们原本在Java进行多对一查询的时候很麻烦，需要查询一行数据之后封装到一个实体类里，然后再将另外一部分的数据封装到另外一个实体类中，
+
+这种方式大大降低了多对一的查询效率，我们可以使用mybatis结果映射中自带的多对一查询功能（association）标签，
+
+association 可以方便我们进行多对一查询，可以将另一条数据封装到一个实体类中。
+
+接下来演示一下
+
+User.java
+
+```java
+/** 以下注解使用到了lombok **/
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+public class User {
+    private Integer id;
+    
+    private String username;
+    
+    private String password;
+    
+    private UserInfo userInfo;
+}
+```
+
+UserInfo.java
+
+```java
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+public class UserInfo {
+    private Integer id;
+    
+	private String name;
+    
+    private String age;
+}
+```
+
+UserMapper.xml
+
+```xml
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.xumob.mapper.UserMapper">
+    
+    <resultMap id="userResultMap" type="User">
+        <id property="id" column="id" />
+        <result property="username" column="username" />
+        <result property="password" column="password" />
+        <association property="userInfo" javaType="UserInfo">
+            <id property="id" column="id" />
+            <result property="name" column="name" />
+            <result property="age" column="age" />
+        </association>
+    </resultMap>
+    
+    <select id="selectUser" resultMap="userResultMap">
+    	SELECT user.id, user.username, user.password, userInfo.id, userInfo.name, userInfo.age
+        FROM user
+        LEFT JOIN userInfo
+        ON user.id = userInfo.id
+        WHERE user.id = #{id};
+    </select>
+</mapper>
+```
+
+这是执行之后的效果
+
+```
+User(id=1, username=admin, password=admin, userInfo=UserInfo(id=1, name=zhangsan, age=18))
 ```
 
 ## 1.7 条件查询
