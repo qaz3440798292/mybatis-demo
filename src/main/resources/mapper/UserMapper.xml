@@ -4,17 +4,29 @@
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="cn.xumob.mapper.UserMapper">
 
-    <resultMap id="UserResultMap" type="User">
+    <resultMap id="userResultMap" type="User">
         <id property="id" column="id" />
         <result property="username" column="username" />
         <result property="password" column="password" />
-        <association property="userInfo" javaType="UserInfo" >
+        <association property="userInfo" javaType="UserInfo">
+            <id property="id" column="userInfo_id" />
             <result property="name" column="name" />
             <result property="age" column="age" />
         </association>
+        <collection property="orders" ofType="Order">
+            <id property="id" column="order_id" />
+            <result property="productName" column="product_name" />
+            <result property="userId" column="userid" />
+        </collection>
     </resultMap>
 
-    <select id="selectUser" resultMap="UserResultMap">
-        SELECT user.id, user.username, user.password, userInfo.name, userInfo.age FROM user LEFT JOIN userInfo ON user.id = userInfo.id WHERE user.id = #{id}
+    <select id="selectUser" resultMap="userResultMap">
+        SELECT user.id, user.username, user.password, userInfo.id AS userInfo_id, userInfo.name, userInfo.age, `order`.id AS order_id, `order`.product_name, `order`.userid
+        FROM user
+        LEFT JOIN userInfo
+        ON user.id = userInfo.id
+        LEFT JOIN `order`
+        ON user.id = `order`.userid
+        WHERE user.id = #{id}
     </select>
 </mapper>

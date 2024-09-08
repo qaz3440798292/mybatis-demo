@@ -2,6 +2,8 @@ package cn.xumob.entity;
 
 import lombok.Data;
 
+import java.util.List;
+
 @Data
 public class User {
 
@@ -13,4 +15,5 @@ public class User {
 
     private UserInfo userInfo;
 
+    private List<Order> orders;
 }

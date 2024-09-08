@@ -7,10 +7,11 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class UserInfo {
+public class Order {
+
     private Integer id;
 
-    private String name;
+    private String productName;
 
-    private Integer age;
+    private Integer userId;
 }

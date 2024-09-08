@@ -255,7 +255,7 @@ UserMapper.java
 </mapper>
 ```
 
-### 1.6.2 多对一结果映射
+### 1.6.2 多对一结果映射 (association)
 
 那有没有想过，当我们一个表的一行数据根某个用户有关系的时候，我们该怎么做呢？
 
@@ -316,14 +316,14 @@ UserMapper.xml
         <result property="username" column="username" />
         <result property="password" column="password" />
         <association property="userInfo" javaType="UserInfo">
-            <id property="id" column="id" />
+            <id property="id" column="userInfo_id" />
             <result property="name" column="name" />
             <result property="age" column="age" />
         </association>
     </resultMap>
     
     <select id="selectUser" resultMap="userResultMap">
-    	SELECT user.id, user.username, user.password, userInfo.id, userInfo.name, userInfo.age
+    	SELECT user.id, user.username, user.password, userInfo.id AS userInfo_id, userInfo.name, userInfo.age
         FROM user
         LEFT JOIN userInfo
         ON user.id = userInfo.id
@@ -337,6 +337,89 @@ UserMapper.xml
 ```
 User(id=1, username=admin, password=admin, userInfo=UserInfo(id=1, name=zhangsan, age=18))
 ```
+
+### 1.6.3  一对多结果映射 (collection)
+
+当我们一条用户数据与多个数据有关系的时候该如何处理呢？
+
+例如：一个用户有多个订单的时候
+
+我们就可以使用到mybatis的 collection 标签，它可以帮助我们进行一对多查询，将多条订单数据封装到用户实体类下。
+
+Order.java
+
+```java
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+public class Order {
+    private Integer id;
+    
+    private String productName;
+}
+```
+
+User.java
+
+```java
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+public class User {
+    private Integer id;
+    
+    private String username;
+    
+    private String password;
+    
+    private List<Order> orders;
+}
+```
+
+UserMapper.java
+
+```xml
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.xumob.mapper.UserMapper">
+    
+    <resultMap id="orderResultMap" type="Order">
+        <id property="id" column="order_id" />
+        <result property="productName" column="product_name" />
+    </resultMap>
+    
+    <resultMap id="userResultMap" type="User">
+        <id property="id" column="id" />
+        <result property="username" column="username" />
+        <result property="password" column="password" />
+        <collection property="orders" ofType="Order" resultMap="orderResultMap" />
+    </resultMap>
+    
+    <select id="selectUserWithOrders" resultMap="userResultMap">
+        SELECT user.id, user.username, user.password, `order`.id AS order_id, `order`.product_name
+        FROM user
+        LEFT JOIN `order`
+        ON user.id = `order`.id
+        WHERE user.id = #{id}
+    </select>
+</mapper>
+```
+
+执行之后的效果
+
+```
+User(id=1, username=admin, password=admin, orders=[Order(id=1, productName=玩具车, userId=1), Order(id=2, productName=玩具枪, userId=1), Order(id=3, productName=玩具熊, userId=1), Order(id=4, productName=玩具猴, userId=1)])
+```
+
+### 1.6.4 一对多和多对一的缺点
+
+一对多和多对一确实简便了查询的操作，一次查询将所有数据查询出来了，但是它会出现一个性能问题，因为mybatis的底层是通过 **JOIN**
+
+来实现的，会出现N + 1的情况，就是每一条数据都要触发一次查询，大家都知道频繁查询会导致数据库的查询性能下降，一对多和多对一付出的代价就是效率提高，降低性能。
+
+我们的解决方案就是将有关联的id保存下来，方便查询有关联的数据。
 
 ## 1.7 条件查询
 
