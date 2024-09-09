@@ -311,15 +311,17 @@ UserMapper.xml
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="cn.xumob.mapper.UserMapper">
     
+    <resultMap id="userInfoResultMap" type="UserInfo">
+        <id property="id" column="userInfo_id" />
+        <result property="name" column="name" />
+        <result property="age" column="age" />
+    </resultMap>
+    
     <resultMap id="userResultMap" type="User">
         <id property="id" column="id" />
         <result property="username" column="username" />
         <result property="password" column="password" />
-        <association property="userInfo" javaType="UserInfo">
-            <id property="id" column="userInfo_id" />
-            <result property="name" column="name" />
-            <result property="age" column="age" />
-        </association>
+        <association property="userInfo" javaType="UserInfo" resultMap="userInfoResultMap" />
     </resultMap>
     
     <select id="selectUser" resultMap="userResultMap">
@@ -413,13 +415,101 @@ UserMapper.java
 User(id=1, username=admin, password=admin, orders=[Order(id=1, productName=玩具车, userId=1), Order(id=2, productName=玩具枪, userId=1), Order(id=3, productName=玩具熊, userId=1), Order(id=4, productName=玩具猴, userId=1)])
 ```
 
-### 1.6.4 一对多和多对一的缺点
+### 1.6.4 关联的嵌套结果映射
 
-一对多和多对一确实简便了查询的操作，一次查询将所有数据查询出来了，但是它会出现一个性能问题，因为mybatis的底层是通过 **JOIN**
+当我们发布一条博客的时候会包含博客和作者的信息，那sql语句就是以下查询语句
 
-来实现的，会出现N + 1的情况，就是每一条数据都要触发一次查询，大家都知道频繁查询会导致数据库的查询性能下降，一对多和多对一付出的代价就是效率提高，降低性能。
+```xml
+<select id="selectBlogWithAuthor" resultType="Blog">
+    SELECT
+        blog.id AS blog_id,
+        blog.title AS blog_title,
+        blog.author_id AS author_id,
+        author.username AS author_username,
+        author.password AS author_password,
+        author.email AS author_email,
+    FROM blog
+    LEFT JOIN author
+    ON blog.id = author.id
+    WHERE blog.author_id = #{id}
+</select>
+```
 
-我们的解决方案就是将有关联的id保存下来，方便查询有关联的数据。
+```xml
+<resultMap id="blogResultMap" type="Blog">
+    <id property="id" column="blog_id" />
+    <result property="title" column="blog_title" />
+    <association property="author" javaType="Author" resultMap="authorResultMap" />
+</resultMap>
+
+<resultMap id="authorResultMap">
+    <id property="id" column="author_id" />
+    <result property="username" column="author_username" />
+    <result property="password" column="author_password" />
+    <result property="email" column="author_email" />
+</resultMap>
+```
+
+这是非常简单的一个多对一的结果映射，这里使用的是一个外部的结果映射元素来进行多对一映射。
+
+有一个重点，id在结果映射是一个非常重要的元素，你起码要指定一个或多个这样的元素做为数据标识。
+
+这里Author结果映射是外部结果映射元素，外部的结果映射元素是可以被重用的，但是我们这里暂时还不重用Author结果映射，那我们可以用到嵌套的结果映射元素来进行多对一映射。
+
+```xml
+<resultMap id="blogResultMap" type="Blog">
+    <id property="id" column="blog_id" />
+    <result property="title" column="blog_title" />
+    <association property="author" javaType="Author">
+    	<id property="id" column="author_id" />
+    	<result property="username" column="author_username" />
+    	<result property="password" column="author_password" />
+    	<result property="email" column="author_email" />
+    </association>
+</resultMap>
+```
+
+那如果博客有共同创作的作者呢？那我们可以在数据表中多加一个共同创作的列，所以查询语句如下：
+
+```xml
+<select id="selectBlogWithAuthor" resultMap="blogResultMap">
+    SELECT
+        blog.id AS blog_id,
+        blog.title AS blog_title,
+        author.id AS author_id,
+        author.username AS author_username,
+        author.password AS author_password,
+        author.email AS author_email,
+    	CA.id AS ca_author_id,
+    	CA.username AS co_author_username,
+    	CA.password AS co_author_password,
+    	CA.email AS co_author_email
+    FROM blog
+    LEFT OUTER JOIN author
+    ON blog.author_id = author.id
+    LEFT OUTER JOIN author CA
+    ON blog.co_author_id = CA.id
+    WHERE blog.id = #{id}
+</select>
+```
+
+那我们多了一个共同创作者，由于列名跟结果映射中的列名不同，所以我们需要用到 **columnPrefix** 来给列名添加前缀，使其能正常对 **co_author** 进行结果映射。
+
+```xml
+<resultMap id="blogResultMap" type="Blog">
+    <id property="id" column="blog_id" />
+    <result property="title" column="blog_title" />
+    <association property="author" javaType="Author" resultMap="authorResultMap" />
+    <association property="coAuthor" javaType="Author" resultMap="authorResultMap" columnPrefix="co_" />
+</resultMap>
+
+<resultMap id="authorResultMap">
+    <id property="id" column="author_id" />
+    <result property="username" column="author_username" />
+    <result property="password" column="author_password" />
+    <result property="email" column="author_email" />
+</resultMap>
+```
 
 ## 1.7 条件查询
 
@@ -501,4 +591,6 @@ public class TestUser {
     }
 }
 ```
+
+## 1.8 动态 SQL
 
