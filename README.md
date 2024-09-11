@@ -259,8 +259,6 @@ UserMapper.java
 
 那有没有想过，当我们一个表的一行数据根某个用户有关系的时候，我们该怎么做呢？
 
-是不是想过多对一查询？
-
 我们原本在Java进行多对一查询的时候很麻烦，需要查询一行数据之后封装到一个实体类里，然后再将另外一部分的数据封装到另外一个实体类中，
 
 这种方式大大降低了多对一的查询效率，我们可以使用mybatis结果映射中自带的多对一查询功能（association）标签，
@@ -511,6 +509,70 @@ User(id=1, username=admin, password=admin, orders=[Order(id=1, productName=玩�
 </resultMap>
 ```
 
+### 1.6.5 自动映射
+
+当在项目中使用结果映射的时候，mybatis提供了一个叫做 "自动映射" 的功能。
+
+当遵守Mybatis的命名规则的时候，就可以将我们的数据自动映射到属性中。
+
+以下是自动映射的示例代码：
+
+```xml
+<resultMap id="empResultMap" type="Emp" autoMapping="true">
+        <id property="id" column="id" />
+        <result property="name" column="emp_name" />
+        <result property="deptId" column="dept_id" />
+        <association property="dept" javaType="Dept" resultMap="deptResultMap" />
+</resultMap>
+```
+
+如果我们要对自动映射就其它配置的时候，我们可以在mybatis的全局配置文件中对自动映射进行一个配置。
+
+自动映射分为三个等级：
+
+**NONE** ：禁用自动映射
+
+**PARTIAL**：除了对内部定义的嵌套映射以外的属性进行映射
+
+**FULL**：对所有属性进行映射
+
+当我们进行结果映射的时候，会发现，我们在使用嵌套映射的时候，无法对嵌套映射以外的属性进行映射。
+
+那是因为mybatis的自动映射默认等级就是 **PARTIAL**。
+
+你可以通过修改自动映射的等级，来解决这个问题，但是我们不建议去直接修改它的默认等级。
+
+我们使用其它方式进行解决。我们有两种解决方案
+
+第一种方式：
+
+```xml
+<resultMap id="empResultMap" type="Emp">
+        <id property="id" column="id" />
+        <result property="name" column="emp_name" />
+        <result property="deptId" column="dept_id" />
+    	<result property="salary" column="salary" />
+    	<result property="gender" column="gender" />
+    	<result property="birthday" column="birthday" />
+        <association property="dept" javaType="Dept" resultMap="deptResultMap" />
+</resultMap>
+```
+
+这个方案是对每个属性进行手动映射来进行实现。
+
+第二种方式：
+
+```xml
+<resultMap id="empResultMap" type="Emp" autoMapping="true">
+        <id property="id" column="id" />
+        <result property="name" column="emp_name" />
+        <result property="deptId" column="dept_id" />
+        <association property="dept" javaType="Dept" resultMap="deptResultMap" />
+</resultMap>
+```
+
+这个方案是直接在结果映射上重新启动自动映射来实现。
+
 ## 1.7 条件查询
 
 我们之前实现了通过建立映射关系来调用sql语句进行查询数据，但是我们要条件查询一条数据该怎么做？我该如何进行参数拼接达到条件查询？
@@ -553,14 +615,12 @@ UserMapper.java
 ```java
 package cn.xumob.mapper;
 
-import cn.xumob.entity.User;
-
 import java.util.List;
 
 public interface UserMapper {
 
     List<User> listUser();
-        
+
     User getUser(String username);
 
 }
@@ -592,5 +652,87 @@ public class TestUser {
 }
 ```
 
-## 1.8 动态 SQL
+## 1.8 INSERT, UPDATE, DELETE 用法
+
+对数据库的数据表的数据进行操作，INSERT, UPDATE, DELETE 的实现非常的相似。
+
+```xml
+<insert
+  id="insertAuthor"
+  parameterType="domain.blog.Author"
+  flushCache="true"
+  statementType="PREPARED"
+  keyProperty=""
+  keyColumn=""
+  useGeneratedKeys=""
+  timeout="20">
+
+<update
+  id="updateAuthor"
+  parameterType="domain.blog.Author"
+  flushCache="true"
+  statementType="PREPARED"
+  timeout="20">
+
+<delete
+  id="deleteAuthor"
+  parameterType="domain.blog.Author"
+  flushCache="true"
+  statementType="PREPARED"
+  timeout="20">
+```
+
+以下是Mybatis的 INSERT, UPDATE, DELETE 示例：
+
+```xml
+<insert id="insertAuthor">
+  insert into Author (id,username,password,email,bio)
+  values (#{id},#{username},#{password},#{email},#{bio})
+</insert>
+
+<update id="updateAuthor">
+  update Author set
+    username = #{username},
+    password = #{password},
+    email = #{email},
+    bio = #{bio}
+  where id = #{id}
+</update>
+
+<delete id="deleteAuthor">
+  delete from Author where id = #{id}
+</delete>
+```
+
+当在插入数据库的时候会生成一个主键，MyBatis 提供了一个功能就是专门去处理自动生成的主键，前提是你的数据库得支持自动生成主键。
+
+如果我们数据库支持主键的自动生成，那我们可以设置属性 **useGeneratedKey="true"** ，在通过 **keyProperty** 来设置目标属性，获取数据表中自动生成的主键值。
+
+比如：我们的 user 数据表中，有一个主键自增id，我们就可以通过设置这个属性，当每次插入数据的时候都去获取一个自增的id。
+
+以下是示例：
+
+```xml
+<insert id="insertUser" useGeneratedKey="true" keyProperty="id">
+    INSERT INTO user(username, password) VALUES ('admin', 'admin')
+</insert>
+```
+
+但是有些数据库无法自动生成主键，那我们就无法直接通过设置 **useGeneratedKey** 属性来获取主键值
+
+我们可以通过使用 **selectKey** 标签元素，来解决这个问题。
+
+这里有一个很简单的例子，不过这个例子只是展示Mybatis的灵活性和宽容性，我不建议进行实际的使用。
+
+```xml
+<insert id="insertAuthor">
+  <selectKey keyProperty="id" resultType="int" order="BEFORE">
+    select CAST(RANDOM()*1000000 as INTEGER) a from SYSIBM.SYSDUMMY1
+  </selectKey>
+  insert into Author
+    (id, username, password, email,bio, favourite_section)
+  values
+    (#{id}, #{username}, #{password}, #{email}, #{bio}, #{favouriteSection,jdbcType=VARCHAR})
+</insert>
+```
 
